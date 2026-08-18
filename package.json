@@ -1,0 +1,18 @@
+{
+  "name": "dsh-lesson-generator",
+  "version": "0.1.0",
+  "description": "一键生成互动课件(Lesson Generator)：输入教材单元(学科+年级+主题)，自动生成可交互的HTML课件包，含翻牌配对/连连看/大转盘/猜猜看4种游戏 + 口语跟读 + 小Quiz。面向小初师生/机构。",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js", "cordis.patch.yml", "README.md", "lib/"],
+  "keywords": ["dsh-plugin", "deepseek", "courseware", "lesson", "education", "课件", "教学", "互动游戏", "k12", "teach"],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^0.1.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
