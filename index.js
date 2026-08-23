@@ -58,14 +58,14 @@ export function apply(ctx) {
     name: 'generate_lesson',
     description: '一键生成互动课件。输入教材单元(学科/年级/unit主题)，可选提供词汇/对话/游戏数据，生成一个自包含的可交互HTML课件包（含翻牌配对/连连看/大转盘/猜猜看 4种游戏 + 口语跟读 + 小Quiz）。不传详细内容时内置三年级英语示例课件(开箱即用)。适合K12教师/机构快速出互动课件。',
     parameters: {
-      subject: { type: 'string', required: false, description: '学科：英语/语文/数学等' },
-      grade: { type: 'string', required: false, description: '年级，如"三年级"/"三年级上册"' },
-      unit: { type: 'string', required: false, description: '单元主题，如"Unit 5 Wild Animals"' },
-      vocab: { type: 'array', items: { type: 'object' }, required: false, description: '词汇表，每项{word, cn, emoji}' },
-      content: { type: 'string', required: false, description: '可选：由模型或使用者整理的课件内容文本，插件会尽量结构化' },
+      subject: { type: 'string', description: '学科：英语/语文/数学等' },
+      grade: { type: 'string', description: '年级，如"三年级"/"三年级上册"' },
+      unit: { type: 'string', description: '单元主题，如"Unit 5 Wild Animals"' },
+      vocab: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '词汇表，每项{word, cn, emoji}' },
+      content: { type: 'string', description: '可选：由模型或使用者整理的课件内容文本，插件会尽量结构化' },
     },
     output: {
-      schema: { type: 'object' },
+      schema: { type: 'object', additionalProperties: true },
       render: (_args, value) => [{ type: 'text', text: value.summary }],
     },
     async execute(args) {
