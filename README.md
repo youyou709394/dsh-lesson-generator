@@ -22,6 +22,23 @@
 > ✅ **v0.1.3 修复**：此前无论传什么学科，游戏内容恒为内置英语示例（语文课件的翻牌/Quiz 也全是 lion/panda）——因为引擎被喂了 `SAMPLE`。
 > 现在**给出了 `vocab` 就按该词表自动生成**全部游戏，适配语文/数学/英语任意学科；`dialog` 缺省时**自动隐藏跟读入口**，不再出现"英语示例污染其他学科"。
 
+## 🔧 安装
+
+> ⚠️ 本插件**托管在 GitHub，尚未发布到 npm registry**。安装时**必须写 `github:` 全名**；
+> 只写包名会报 `ERR_PNPM_FETCH_404 Not Found - registry.npmjs.org`。
+
+```bash
+# 从 GitHub 安装（推荐，复制即用）
+dsh plugin --profile demo add github:youyou709394/dsh-lesson-generator
+
+# 启动
+dsh --profile demo
+```
+
+- `add` 与 `install` 等价（`dsh plugin` 只是把参数转发给 pnpm）
+- 也可以直接用本地目录：`dsh plugin --profile demo add /path/to/dsh-lesson-generator`
+- 装机验证：`dsh plugin --profile demo list` 与 `dsh --profile demo --dump-config | grep lesson-generator`
+
 ## 📦 提供的工具
 
 ### `generate_lesson`（核心·一键生成课件）
