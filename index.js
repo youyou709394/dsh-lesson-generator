@@ -139,8 +139,10 @@ export function apply(ctx) {
       subject: { type: 'string', description: '学科：英语/语文/数学等' },
       grade: { type: 'string', description: '年级，如"三年级"/"三年级上册"' },
       unit: { type: 'string', description: '单元主题，如"Unit 5 Wild Animals"' },
-      vocab: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '词汇表，每项{word, cn, emoji}。给出后，翻牌/连连看/大转盘/猜猜看/Quiz 会依据它自动生成。' },
+      vocab: { type: 'array', description: '词汇表，每项 {word, cn, emoji}；也接受纯字符串数组（如 ["red","blue"]）。给出后，翻牌/连连看/大转盘/猜猜看/Quiz 会依据它自动生成。' },
       content: { type: 'string', description: '可选：课件内容文本，按行解析（每行 "词|中文|emoji"、"词,中文" 或 "词：中文"）。当未给 vocab 时用作词表来源。' },
+      words: { type: 'array', description: '别名（等同 vocab）：兼容 words 写法，同样接受字符串数组。两者都给时以 vocab 为准。' },
+      topic: { type: 'string', description: '别名（等同 unit）：兼容 topic 写法。两者都给时以 unit 为准。' },
       flip: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '可选：翻牌配对数据[{emoji,word}]，覆盖自动生成。' },
       connect: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '可选：连连看数据，前半[{left}]后半[{right}]且左右同序，覆盖自动生成。' },
       wheel: { type: 'array', items: { type: 'string' }, description: '可选：大转盘词条，覆盖自动生成。' },
@@ -154,14 +156,25 @@ export function apply(ctx) {
       render: (_args, value) => [{ type: 'text', text: value.summary }],
     },
     async execute(args) {
+      // 兼容别名 + 容错：words→vocab, topic→unit；字符串词表自动包装；未识别参数显式提示（防静默误用）
+      const KNOWN_ARGS = new Set(['subject', 'grade', 'unit', 'vocab', 'words', 'topic', 'content',
+        'flip', 'connect', 'wheel', 'guess', 'dialog', 'quiz', 'readKeys'])
+      const unknownArgs = Object.keys(args || {}).filter(k => !KNOWN_ARGS.has(k))
+      if (!(Array.isArray(args.vocab) && args.vocab.length) && Array.isArray(args.words) && args.words.length) args.vocab = args.words
+      if (!args.unit && args.topic) args.unit = args.topic
+
+      const asVocab = (arr) => (Array.isArray(arr)
+        ? arr.map(v => (typeof v === 'string' ? { word: v, cn: '', emoji: '📘' }
+          : (v && typeof v === 'object' ? v : { word: String(v), cn: '', emoji: '📘' }))) : [])
+
       const subject = args.subject || SAMPLE.subject
       const grade = args.grade || SAMPLE.grade
       const unit = args.unit || SAMPLE.unit
 
-      // 词表来源优先级：显式 vocab > content 解析 > null
+      // 词表来源优先级：显式 vocab(含别名 words) > content 解析 > null
       const fromContent = parseContent(args.content)
-      const vocab = (Array.isArray(args.vocab) && args.vocab.length) ? args.vocab
-        : (fromContent.length ? fromContent : null)
+      const vocab = (Array.isArray(args.vocab) && args.vocab.length) ? asVocab(args.vocab)
+        : (fromContent.length ? asVocab(fromContent) : null)
 
       const hasAnyUserData = !!(vocab || args.flip?.length || args.connect?.length || args.wheel?.length
         || args.guess?.length || args.dialog?.length || args.quiz?.length)
@@ -183,7 +196,7 @@ export function apply(ctx) {
 · 词汇 ${c.vocab.length} 个：${c.vocab.slice(0, 6).map(v => (v.emoji || '') + v.word).join(' ')}${c.vocab.length > 6 ? ' …' : ''}
 · 互动游戏：${games.length ? games.join(' / ') : '（无）'}
 · 口语跟读 ${(d.dialog || []).length} 句对话 · 小Quiz ${(d.quiz || []).length} 题
-· 积分宠物激励 ⭐${hasAnyUserData ? '' : '\n· ⚠️ 未提供 vocab/内容，本次使用内置三年级英语示例数据'}
+· 积分宠物激励 ⭐${hasAnyUserData ? '' : '\n· ⚠️ 未提供 vocab/内容，本次使用内置三年级英语示例数据'}${unknownArgs.length ? '\n· ⚠️ 未识别参数: ' + unknownArgs.join('/') + '（已忽略；可用参数: ' + [...KNOWN_ARGS].join('/') + '）' : ''}
 
 💻 课件HTML（自包含、离线可跑、移动端优先）已生成。
 👉 如需把它保存成文件使用，请模型给用户输出完整HTML。
