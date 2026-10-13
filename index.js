@@ -9,6 +9,8 @@
  * 零配置演示：不传详细内容时，内置三年级英语示例课件（开箱即用）
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { writeFileSync, mkdirSync } from 'node:fs'
+import { dirname, resolve as resolvePath } from 'node:path'
 import { buildLessonHTML, buildLessonJSON } from './lib/courseware-engine.js'
 
 export const name = 'dsh-lesson-generator'
@@ -134,7 +136,7 @@ function deriveGames(vocab, args) {
 export function apply(ctx) {
   ctx.tools.register(defineTool({
     name: 'generate_lesson',
-    description: '一键生成互动课件。输入教材单元(学科/年级/unit主题)，可选提供词汇/对话/游戏数据，生成一个自包含的可交互HTML课件包（含翻牌配对/连连看/大转盘/猜猜看 4种游戏 + 口语跟读 + 小Quiz）。给出 vocab 后所有游戏内容按该词表自动生成，适配任意学科；也可用 flip/connect/wheel/guess/quiz/dialog 精确覆盖。完全不传内容时内置三年级英语示例课件(开箱即用)。适合K12教师/机构快速出互动课件。',
+    description: '一键生成互动课件。输入教材单元(学科/年级/unit主题)，可选提供词汇/对话/游戏数据，生成一个自包含的可交互HTML课件包（含翻牌配对/连连看/大转盘/猜猜看 4种游戏 + 口语跟读 + 小Quiz）。给出 vocab 后所有游戏内容按该词表自动生成，适配任意学科；也可用 flip/connect/wheel/guess/quiz/dialog 精确覆盖。完全不传内容时内置三年级英语示例课件(开箱即用)。**推荐同时传 out_path**，插件会自己把 HTML 落盘并返回路径（否则请勿自行重写 HTML）。适合K12教师/机构快速出互动课件。',
     parameters: {
       subject: { type: 'string', description: '学科：英语/语文/数学等' },
       grade: { type: 'string', description: '年级，如"三年级"/"三年级上册"' },
@@ -150,6 +152,7 @@ export function apply(ctx) {
       dialog: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '可选：跟读对话[{who,text}]。缺省时不显示跟读入口（避免英语示例污染其他学科）。' },
       quiz: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '可选：小Quiz题目[{q,options[],correct}]，覆盖自动生成。' },
       readKeys: { type: 'array', items: { type: 'string' }, description: '可选：跟读重点词，缺省取 vocab 词表。' },
+      out_path: { type: 'string', description: '可选但强烈建议：把生成的 HTML 直接写到该文件路径（绝对或相对 cwd）。插件自己落盘并在结果里返回路径；传入后不要再由模型输出/重写 HTML。' },
     },
     output: {
       schema: { type: 'object', additionalProperties: true },
@@ -158,7 +161,7 @@ export function apply(ctx) {
     async execute(args) {
       // 兼容别名 + 容错：words→vocab, topic→unit；字符串词表自动包装；未识别参数显式提示（防静默误用）
       const KNOWN_ARGS = new Set(['subject', 'grade', 'unit', 'vocab', 'words', 'topic', 'content',
-        'flip', 'connect', 'wheel', 'guess', 'dialog', 'quiz', 'readKeys'])
+        'flip', 'connect', 'wheel', 'guess', 'dialog', 'quiz', 'readKeys', 'out_path'])
       const unknownArgs = Object.keys(args || {}).filter(k => !KNOWN_ARGS.has(k))
       if (!(Array.isArray(args.vocab) && args.vocab.length) && Array.isArray(args.words) && args.words.length) args.vocab = args.words
       if (!args.unit && args.topic) args.unit = args.topic
@@ -192,19 +195,29 @@ export function apply(ctx) {
       if (d.wheel?.length) games.push(`大转盘(${d.wheel.length})`)
       if (d.guess?.length) games.push(`猜猜看(${d.guess.length})`)
 
+      // ---- out_path：插件自己落盘（v0.1.6）。根治"诱导模型重写 HTML"的缺陷。----
+      let savedPath = null
+      if (typeof args.out_path === 'string' && args.out_path.trim()) {
+        savedPath = resolvePath(args.out_path.trim())
+        mkdirSync(dirname(savedPath), { recursive: true })
+        writeFileSync(savedPath, html, 'utf8')
+      }
+
+      const saveLine = savedPath
+        ? `\n💾 课件已由插件写入文件：${savedPath}（${Buffer.byteLength(html, 'utf8')} 字节）\n👉 直接把该路径告知用户即可；**不要**再输出或重写 HTML。`
+        : `\n💻 课件HTML（自包含、离线可跑、移动端优先）已在返回值的 html 字段中生成。\n👉 如要落盘，请再次调用本工具并传入 out_path="目标路径"（推荐做法）；**不要**自己重新生成或改写 HTML。`
+
       const summary = `📚 课件已生成：${c.grade} ${c.subject} · ${c.unit}
 · 词汇 ${c.vocab.length} 个：${c.vocab.slice(0, 6).map(v => (v.emoji || '') + v.word).join(' ')}${c.vocab.length > 6 ? ' …' : ''}
 · 互动游戏：${games.length ? games.join(' / ') : '（无）'}
 · 口语跟读 ${(d.dialog || []).length} 句对话 · 小Quiz ${(d.quiz || []).length} 题
 · 积分宠物激励 ⭐${hasAnyUserData ? '' : '\n· ⚠️ 未提供 vocab/内容，本次使用内置三年级英语示例数据'}${unknownArgs.length ? '\n· ⚠️ 未识别参数: ' + unknownArgs.join('/') + '（已忽略；可用参数: ' + [...KNOWN_ARGS].join('/') + '）' : ''}
+${saveLine}
 
-💻 课件HTML（自包含、离线可跑、移动端优先）已生成。
-👉 如需把它保存成文件使用，请模型给用户输出完整HTML。
-
-📦 数据结构预览：
+📦 数据结构预览（仅供核对，**不是**要你重写的内容）：
 ${JSON.stringify(data).slice(0, 500)}...`
 
-      return { summary, html, data, unit: `${c.grade} ${c.subject} ${c.unit}` }
+      return { summary, html, data, savedPath, unit: `${c.grade} ${c.subject} ${c.unit}` }
     },
   }))
 }

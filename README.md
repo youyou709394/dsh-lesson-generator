@@ -46,6 +46,7 @@ dsh --profile demo
   - `vocab`（可选，每项 `{word, cn, emoji}`）— **给出后翻牌/连连看/大转盘/猜猜看/Quiz 全部按它自动生成**
   - `content`（可选，自由文本，每行 `词|中文|emoji`、`词,中文` 或 `词：中文`）— 未给 `vocab` 时作为词表来源
   - `flip` / `connect` / `wheel` / `guess` / `quiz` / `dialog` / `readKeys`（可选）— 精确覆盖自动生成
+  - **`out_path`（可选·强烈建议）** — 传入后**插件自己把生成的 HTML 写到该路径**并在结果里返回路径；模型**不要**再输出/重写 HTML（根治"拿到引擎课件却被诱导重写成另一份"的老问题）
 - **返回**：完整课件 HTML（可直接保存用）+ 结构化课件数据 JSON + 摘要
 
 ## 🎓 使用示例
@@ -94,6 +95,7 @@ node --input-type=module --check < lib/courseware-engine.js
 - [ ] 教师版班级管理订阅
 
 ## 更新记录
+- **v0.1.6** — 新增 `out_path` 参数：插件自己落盘并返回路径，结果里明确"不要重写 HTML"。根治连续 6 轮复现的产品级缺陷（`generate_lesson` 返回引擎课件后，模型被旧提示语诱导自写 HTML，用户拿到的不是测试过的引擎版本，还多烧 ~5K tokens）。
 - **v0.1.5** — 参数容错：新增别名 `words`(=vocab) / `topic`(=unit)；`vocab` 现在也接受**纯字符串数组**（`["red","blue"]` 自动包装）；传入未识别参数时 `summary` 会**显式提示**（不再静默回退内置英语示例）。
 - **v0.1.4** — README 补安装段（未发布 npm，必须用 `github:` 全名安装）。
 - **v0.1.3** — 游戏内容随学科走（用你的 vocab 派生各游戏，不再恒取内置英语示例）。
